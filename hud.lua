@@ -436,6 +436,20 @@ function onCustomSubstateUpdate(name, elapsed)
             closeCustomSubstate()
             highlightOptions()
         end
+
+        for i = 1, #optionsTable do
+            local hovered = optionsTable[i]
+            if leMouse(hovered) then
+                if curSelected ~= i then 
+                    curSelected = i 
+                    playSound('scrollMenu', 1)
+                    highlightOptions()
+                end
+                if mouseClicked('left') then
+                    callbacks[curSelected]()
+                end
+            end
+        end
     end
     if name == 'Results' then
         if keyJustPressed("accept") then

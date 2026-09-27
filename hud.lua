@@ -514,7 +514,7 @@ end
 
 function leMouse(uhh)
     return (getMouseX('other') > getProperty(uhh..'.x') and getMouseX('other') < getProperty(uhh..'.x') + getProperty(uhh..'.width'))
-    and (getMouse('other') > getProperty(uhh..'.y') and getMouse('other') < getProperty(uhh..'.y') + getProperty(uhh..'.height'))
+    and (getMouseY('other') > getProperty(uhh..'.y') and getMouseY('other') < getProperty(uhh..'.y') + getProperty(uhh..'.height'))
 end
 
 function onTimerCompleted(tag, loops, loopsLeft)

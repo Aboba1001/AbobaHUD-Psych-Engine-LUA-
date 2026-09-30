@@ -16,13 +16,13 @@ local callbacks = {
     [1] = function() closeCustomSubstate(); end,
     [2] = function() restartSong(); end,
     [3] = function() debugPrint("Not yet lil blud.") end,
-    [4] = function() addHaxeLibrary("flixel.FlxG")
-        runHaxeCode('FlxG.switchState(new states.options.OptionsState());')
+    [4] = function()
+        runHaxeCode([[
+            trace('yle')
+        ]])
     end,
     [5] = function() exitSong(); end,
 }
-
-local difficulties = {'Easy','Normal','Hard','Erect','Nightmare'}
 
 local keybinds = {'note_left','note_down','note_up','note_right'}
 local allowInput = true
@@ -39,7 +39,7 @@ local totalNotes = 0
 -- Triggers: 'true' - Enable / 'false' - Disable
 
 local div = '^' -- Change scoreTxt dividers! Example: 'Score: 0 ^ Misses: 0 ^ Rating: ?'
-local laneUnderlayAlpha = 0.8 -- Set this to 0 to disable it (Default : 0.8)
+local laneUnderlayAlpha = 0.4 -- Set this to 0 to disable it (Default : 0.8)
 local customBotplayTxt = "" -- Leave this empty if you want to keep the default botplay text.
 local randomBotplayTexts = {'CPUPLAY','AUTOPLAY',''} -- Keep expanding the list as much as you want!
 local randomBotplayTxt = false -- Set this to 'true' if you want randomized botplay texts!
@@ -48,9 +48,8 @@ local hudTransparency = 1 -- Controls the whole HUD camera transparency! (Defaul
 local customTimeBG = true -- Set this to 'true' if you want custom timeBar BG! (Default : true)
 local displayMsTxt = true -- Displays how early/late you press note in milliseconds! Simmiliar to Kade Engine (Default : true)
 local verticalHPbar = false -- Displays HP bar in vertical! (Default : false)
-local verticalHPalignment = 'Right' -- Controls whether if you want to move vertical HP to either left or right side. (Default : 'Right')
 local resultsScreen = true -- Shows detailed stats of how you performed at the end of song/week! (Default : true)
-local scoreTxtStyle = 'Kade' -- This controls scoreTxt style! Available styles: Default, Kade, Forever, Leather, Vanilla (Default: 'Default')
+local scoreTxtStyle = 'Default' -- This controls scoreTxt style! Available styles: Default, Kade, Forever, Leather, Vanilla (Default: 'Default')
 local iconBopStyle = '' -- This controls icon bop style! Available: Kade, Vanilla, Static (Default : Empty!)
 local watermark = true -- Displays watermark like the one from Kade Engine! (Default : true)
 local comboCounter = true -- Displays your combo! (Default : true)
@@ -64,7 +63,7 @@ local oldHPBarColors = false -- Set this to 'true' to bring back red and green h
 
 -----------------------------------------------------------------------------------------------
 
-function initializePostOptions()
+function setPostOptions()
     if hudTransparency < 1 then
         setProperty('camHUD.alpha', hudTransparency)
     end
@@ -83,12 +82,11 @@ function initializePostOptions()
         setProperty('healthBar.x', screenWidth / 2 + 260)
         setProperty('healthBar.y', screenHeight / 2)
     end
-
-    --debugPrint(getKeybind('note_left'))
-
-    for i = 0, 3 do
-        if laneUnderlayAlpha > 0 then
-            -- Creating Notes Underlay For Player!
+    if customWindowTitle ~= '' then
+        setPropertyFromClass('lime.app.Application', 'current.window.title', customWindowTitle)
+    end
+    for i = 0, getProperty('playerStrums.length')-1 do
+        if laneUnderlayAlpha > 0 then -- Creating Lane Underlay For Both Opponent And Player!
             makeLuaSprite("noteUnderlay_"..i, nil, getPropertyFromGroup('playerStrums', i, 'x'), screenHeight / getPropertyFromGroup('playerStrums', i, 'y'))
             makeGraphic("noteUnderlay_"..i, getPropertyFromGroup('playerStrums', i, 'width'), screenHeight, '000000')
             setObjectCamera("noteUnderlay_"..i, "camHUD")
@@ -96,7 +94,6 @@ function initializePostOptions()
             addLuaSprite("noteUnderlay_"..i)
             --debugPrint('Created Note Underlay '.. i .. ' For Player!')
             
-            -- Creating Notes Underlay For Player!
             makeLuaSprite("opponentNoteUnderlay_"..i, nil, getPropertyFromGroup('opponentStrums', i, 'x'), screenHeight / getPropertyFromGroup('opponentStrums', i, 'y'))
             makeGraphic("opponentNoteUnderlay_"..i, getPropertyFromGroup('opponentStrums', i, 'width'), screenHeight, '000000')
             setObjectCamera("opponentNoteUnderlay_"..i, "camHUD")
@@ -108,8 +105,7 @@ function initializePostOptions()
             doTweenAlpha('dadUnderlayAlpha_' .. i, 'opponentNoteUnderlay_' .. i, laneUnderlayAlpha, 0.6, 'linear')
         end
 
-        if keybindsHint then 
-            -- Creating Notes Keybind Hint!
+        if keybindsHint then -- Creating Notes Keybind Hint!
             makeLuaText("keybindHint_"..i, keybinds[i], getPropertyFromGroup('playerStrums', i, 'x'), 0, getPropertyFromGroup('playerStrums', i, 'y'))
             setObjectCamera("keybindHint_"..i, "camHUD")
             setTextSize("keybindHint_"..i, 25)
@@ -122,6 +118,8 @@ function initializePostOptions()
 end
 
 function onCreate()
+
+    setPropertyFromClass('flixel.FlxG', 'mouse.visible', true)
 
     makeLuaText("fakeTimeTxt", "- " ..songName.. " / (" ..string.upper(difficultyName).. ") -", screenWidth / 2, 0, screenHeight / 2 - 340)
     setTextSize("fakeTimeTxt", 23)
@@ -141,6 +139,11 @@ function onCreate()
 
     setProperty("fakeTimeTxt.alpha", 0)  
     setProperty("songTime.alpha", 0)
+
+    makeLuaText('pauseButton', '||', screenWidth / 2 + 1810, 0, screenHeight / 2 - 330)
+    setTextSize('pauseButton', 40)
+    setObjectCamera('pauseButton', 'other')
+    addLuaText('pauseButton', true)
 
     if watermark then
         makeLuaText('watermarkLOL', songName .. ' - ' .. difficultyName .. ' | v' .. version, screenWidth, 0, screenHeight / 2 + 340)
@@ -180,9 +183,10 @@ function onCreate()
 end
 
 function onCreatePost()
+    setPropertyFromClass('lime.app.Application', 'current.window.title', 'Psych Engine')
     setProperty("timeTxt.visible", false)
     setProperty("timeBar.visible", false)
-    initializePostOptions();
+    setPostOptions();
 
     for i = 0, getProperty('unspawnNotes.length') - 1 do
         if getPropertyFromGroup('unspawnNotes', i, 'mustPress') and not getPropertyFromGroup('unspawnNotes', i, 'isSustainNote') then
@@ -206,6 +210,9 @@ function onEvent(n)
     end
 end
 
+function onUpdate()
+end
+
 function onUpdate(elapsed)
     local combo = getProperty('combo')
     local health = round(getProperty("health") * 50, 2)
@@ -213,7 +220,6 @@ function onUpdate(elapsed)
     local notesPercent = (hits / totalNotes) * 100
 
     local newTimeCounter = milliToHuman(songLength - (getPropertyFromClass('backend.Conductor', 'songPosition') - noteOffset))
-    local newScoreTxt
     local newJudgmentTxt = string.format(
         '> NPS: %d (Max: %d)\n> Note Hits: %d / %d (%.2f%%)\n> Combo: %d\n> Sicks: %d\n> Goods: %d\n> Bads: %d\n> Shits: %d', 
         nps,
@@ -228,18 +234,19 @@ function onUpdate(elapsed)
         math.floor(tonumber(shits) or 0)
     )
 
-    if scoreTxtStyle == "Default" then
-        newScoreTxt = "Score: " ..score..
-        " " ..div.. " Misses: " ..misses..
-        " " ..div.. " HP: " .. health .. "%" ..
-        " " ..div.. " ACC: " .. acc .. "% (" .. ratingFC.. ")"
-    elseif scoreTxtStyle == "Kade" then
-        --newScoreTxt = "Score: " .. score .. " | Combo Breaks: " .. misses .. " Accuracy: " .. acc .. "% - " .. ratingFC
-        newScoreTxt = string.format('Score: %d | Combo Breaks: %d | Accuracy: %.2f%% - %s', score, misses, acc, ratingFC)
+    if scoreTxtStyle == 'Default' then
+        setTextString("scoreTxt", "Score: " ..score.. " " ..div.. " Misses: " ..misses.. " " ..div.. " HP: " .. health .. "%" .. " " ..div.. " ACC: " .. acc .. "% (" .. ratingFC.. ")")
+    elseif scoreTxtStyle == 'Kade' then
+        setTextString('scoreTxt', string.format('Score: %d | Combo Breaks: %d | Accuracy: %.2f%% - %s', score, misses, acc, ratingFC))
+    elseif scoreTxtStyle == 'Vanilla' then
+        setTextString('scoreTxt', 'Score: ' .. score)
+    elseif scoreTxtStyle == 'Forever' then
+        setTextString('scoreTxt', string.format('Score: %d • Accuracy: %.2f%% [%s] • Combo Breaks: %d • Rank: %s', score, acc, ratingFC, misses, rating))
+    elseif scoreTxtStyle == 'Leather' then
+        setTextString('scoreTxt', string.format('Misses: %d | Accuracy: %.2f%% | Score: %d | %s - %s', misses, acc, score, ratingFC, rating))
     end
 
     setTextString("songTime", newTimeCounter)
-    setTextString("scoreTxt", newScoreTxt)
     setTextString("judgmentText", newJudgmentTxt)
 
     if nps > 0 and reduce == true then
@@ -254,32 +261,18 @@ function onUpdate(elapsed)
     end
 end
 
+function onSongStart()
+    setPropertyFromClass('lime.app.Application', 'current.window.title', 'Psych Engine - Currently Playing ' .. songName .. ' - ' ..difficultyName)
+    setProperty('fakeTimeTxt.alpha', 1)
+    setProperty('songTime.alpha', 1)
+end
 function onPause()
     openCustomSubstate("Pause", true)
     return Function_Stop
 end
-
-function onSongStart()
-    setProperty('fakeTimeTxt.alpha', 1)
-    setProperty('songTime.alpha', 1)
-end
-
 function onEndSong()
     openCustomSubstate("Results", true)
     return Function_Stop;
-end
-
-function getKeybind(what)
-    local bind = getPropertyFromClass('ClientPrefs', 'keyBinds')[what]
-    if bind ~= nil then
-        local key = bind[1] or bind
-        local map = getPropertyFromClass('flixel.input.keyboard.FlxKey', 'toStringMap')
-        if map ~= nil and key ~= nil then
-            return tostring(map[key] or key)
-        end
-        return tostring(key)
-    end
-    return '?'
 end
 
 function milliToHuman(milliseconds) -- https://stackoverflow.com/questions/18313171/lua-rounding-numbers-and-then-truncate
@@ -299,15 +292,13 @@ end
 
 function onCustomSubstateCreate(name)
     if name == "Pause" then
+        setPropertyFromClass('lime.app.Application', 'current.window.title', 'Psych Engine - Paused! (' .. songName .. ' - ' .. difficultyName .. ')')
+        setPropertyFromClass('flixel.FlxG', 'mouse.visible', true)
+
+        playMusic('breakfast', 1, true)
+
         curSelected = 1
         optionsTable = {}
-        setPropertyFromClass('flixel.FlxG', 'mouse.visible', true)
-        playSound('freeplayRandom', 1)
-        runTimer('pauseSong', 20)
-
-        makeLuaText('arrow', '>', screenWidth / 2 - 650, 0)
-        setTextSize('arrow', 60)
-        setObjectCamera('arrow', 'hud')
 
         makeLuaSprite("bg", nil, 0, 0)
         makeGraphic("bg", screenWidth, screenHeight, "000000")
@@ -326,6 +317,10 @@ function onCustomSubstateCreate(name)
         setTextSize('attempts', 25)
         setTextAlignment('attempts', 'right')
         setObjectCamera('attempts', 'other')
+
+        makeLuaText('arrow', '>', screenWidth / 2 - 650, 0)
+        setTextSize('arrow', 60)
+        setObjectCamera('arrow', 'other')
 
         if botplay then
             makeLuaText('botplay', 'BOTPLAY', screenWidth / 2 + 625, 0, getProperty('attempts.y') + 20)
@@ -348,11 +343,11 @@ function onCustomSubstateCreate(name)
         doTweenAlpha('attemptsTween', 'attempts', 1, 0.6, 'linear')
         doTweenAlpha('arrowTween', 'arrow', 1, 1, 'linear')
 
-        addLuaText('arrow', true)
         addLuaSprite("bg", false)
         addLuaText('title', true)
         addLuaText('songInfo', true)
         addLuaText('attempts', true)
+        addLuaText('arrow', true)
 
         for i = 1, #Options do 
             local optionName = "optionButton" .. i
@@ -368,6 +363,7 @@ function onCustomSubstateCreate(name)
     end
 
     if name == 'Results' then
+        setPropertyFromClass('lime.app.Application', 'current.window.title', 'Psych Engine - Results Screen!')
         setPropertyFromClass('flixel.FlxG', 'mouse.visible', true)
 
         makeLuaSprite("bg", nil, 0, 0)
@@ -383,9 +379,10 @@ function onCustomSubstateCreate(name)
         setTextSize('judgmentTitle', 40)
         setObjectCamera('judgmentTitle', 'other')
 
-        makeLuaText('actualthing', '', screenWidth / 2 - 100, 0, getProperty('judgmentTitle.y') + 40)
+        makeLuaText('actualthing', string.format('Total Score: %d\nMax Notes Per Second: %d\nNotes Hit: %d / %d (%.2f%%)\nSicks: \nGoods: \nBads: \nShits:', score, maxNPS, hits, totalNotes, (hits / totalNotes) * 100), screenWidth / 2 - 100, 0, getProperty('judgmentTitle.y') + 40)
         setTextSize('actualthing', 25)
         setObjectCamera('actualthing', 'other')
+        setTextAlignment('actualthing', 'left')
 
         makeLuaText('controlsHint', '! Press ACCEPT to continue !', getProperty('judgmentTitle.x'), 0, screenHeight / 2 + 300)
         setTextSize('controlsHint', 35)
@@ -408,35 +405,23 @@ function onCustomSubstateCreate(name)
         doTweenAlpha('statsTween', 'actualthing', 1, 0.4, 'linear')
         doTweenAlpha('controlsTween', 'controlsHint', 1, 0.4, 'linear')
         doTweenY('titleTweenY', 'title', screenHeight / 2 - 325, 0.6, 'elasticOut')
-
-        setTextString('actualthing', string.format('Total Score: %d\nMax Notes Per Second: %d\nNotes Hit: %d / %d (%.2f%%)', 
-            score, maxNPS, hits, totalNotes, (hits / totalNotes) * 100)
-        )
     end
 end
 
 function onCustomSubstateUpdate(name, elapsed)
     if name == "Pause" then
         if keyJustPressed("ui_up") then
-            playSound("scrollMenu", 1)
-            changeItem(-1)
-            highlightOptions()
+            buttonShit(-1)
         end
         if keyJustPressed("ui_down") then
-            playSound("scrollMenu", 1)
-            changeItem(1)
-            highlightOptions()
+            buttonShit(1)
         end
         if keyJustPressed("accept") then
-            --playSound("confirmMenu")
-            callbacks[curSelected]();
-            highlightOptions()
+            onAccept()
         end
         if keyJustPressed("back") then
-            closeCustomSubstate()
-            highlightOptions()
+            runTimer('pause timer', 1)
         end
-
         for i = 1, #optionsTable do
             local hovered = optionsTable[i]
             if leMouse(hovered) then
@@ -445,20 +430,21 @@ function onCustomSubstateUpdate(name, elapsed)
                     playSound('scrollMenu', 1)
                     highlightOptions()
                 end
-                if mouseClicked('left') then
-                    callbacks[curSelected]()
+                if mouseReleased('left') then
+                    onAccept()
                 end
             end
         end
     end
     if name == 'Results' then
-        if keyJustPressed("accept") then
-            endSong()
+        if keyJustPressed("accept") or leMouse('controlsHint') and mouseReleased('left') then
+            closeCustomSubstate()
         end
     end
 end
 
 function onCustomSubstateDestroy(name)
+    setPropertyFromClass('lime.app.Application', 'current.window.title', 'Psych Engine - Currently Playing ' .. songName .. ' - ' ..difficultyName)
     if name == "Pause" then
         setPropertyFromClass('flixel.FlxG', 'mouse.visible', false)
         cancelTimer('pause music')
@@ -512,21 +498,34 @@ function highlightOptions()
     end
 end
 
+function buttonShit(lol)
+    playSound("scrollMenu", 1)
+    changeItem(lol)
+    highlightOptions()
+end
+
+function onAccept()
+    playSound("confirmMenu")
+    callbacks[curSelected]();
+    highlightOptions()
+end
+
 function tweenPause(cool)
     if cool == 1 then
         for i = 1, #optionsTable do
-            doTweenAlpha("optionTweenAlpha"..i, optionsTable[i], 1, 0.5, "linear")
-            doTweenX("optionTweenX"..i, optionsTable[i], screenWidth / 2 - 650  + (i * 65), 1, "elasticOut")
+            doTweenAlpha("optionAlpha"..i, optionsTable[i], 1, 0.5, "linear")
+            doTweenX("optionX"..i, optionsTable[i], screenWidth / 2 - 650  + (i * 65), 1, "elasticOut")
         end
     elseif cool == 2 then
         for i = 1, #optionsTable do
-            doTweenAlpha("optionTweenAlpha"..i, optionsTable[i], 0, 0.5, "linear")
-            doTweenX("optionTweenX"..i, optionsTable[i], -600, 0.5, "quadOut")
+            doTweenAlpha("optionAlpha"..i, optionsTable[i], 0, 0.5, "linear")
+            doTweenX('optionX' .. i, optionsTable[i], getProperty(optionsTable[i] .. '.x') - 100 + (i * 65), 'elasticOut')
         end
     end
 end
 
-function leMouse(uhh)
+function leMouse(uhh, cam)
+    cam = cam or 'hud'
     return (getMouseX('other') > getProperty(uhh..'.x') and getMouseX('other') < getProperty(uhh..'.x') + getProperty(uhh..'.width'))
     and (getMouseY('other') > getProperty(uhh..'.y') and getMouseY('other') < getProperty(uhh..'.y') + getProperty(uhh..'.height'))
 end
@@ -541,6 +540,9 @@ function onTimerCompleted(tag, loops, loopsLeft)
         runTimer('reduce nps', 1/nps, 1)
         nps = nps - 1
     end
+    if tag == 'pause timer' then
+        tweenPause(2)
+    end
 end
 
 function onTweenCompleted(tag)
@@ -550,7 +552,6 @@ function onTweenCompleted(tag)
         end
         if tag == 'keybindFade' .. i then
             removeLuaText('keybindsHint_' .. i)
-            --debugPrint('DELETEEEEEEEEEEEE')
         end
     end
 end
